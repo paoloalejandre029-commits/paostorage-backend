@@ -25,11 +25,12 @@ export default async function handler(req, res) {
       privateKey = privateKey.replace(/\\n/g, '\n').replace(/"/g, '');
     }
 
+    // Authenticate with a broader scope to allow permission modifications
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
       privateKey,
-      ['https://www.googleapis.com/auth/drive.file']
+      ['https://www.googleapis.com/auth/drive']
     );
 
     const drive = google.drive({ version: 'v3', auth });
@@ -50,15 +51,35 @@ export default async function handler(req, res) {
       body: bufferStream,
     };
 
-    // FIXED HERE: Added supportsAllDrives: true to bypass the service account quota restriction
+    // 1. Create the file profile
     const response = await drive.files.create({
       resource: fileMetadata,
       media: media,
       fields: 'id',
-      supportsAllDrives: true, 
+      supportsAllDrives: true,
     });
 
-    return res.status(200).json({ success: true, fileId: response.data.id });
+    const fileId = response.data.id;
+
+    // 2. FORCE TRANSFER: Make your personal Gmail account the official owner 
+    // This moves the file's file-size weight over to your personal storage quota.
+    try {
+      await drive.permissions.create({
+        fileId: fileId,
+        transferOwnership: true, 
+        moveToNewOwnersDrive: false,
+        supportsAllDrives: true,
+        resource: {
+          role: 'owner',
+          type: 'user',
+          emailAddress: 'paolo.alejandre029@gmail.com' // <-- Your real Gmail address
+        }
+      });
+    } catch (permError) {
+      console.warn("Ownership transfer warning (ignoring if file created):", permError.message);
+    }
+
+    return res.status(200).json({ success: true, fileId: fileId });
   } catch (error) {
     console.error("CRASH ERROR:", error);
     return res.status(500).json({ 
