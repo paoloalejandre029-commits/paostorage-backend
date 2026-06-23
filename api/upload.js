@@ -50,17 +50,17 @@ export default async function handler(req, res) {
       body: bufferStream,
     };
 
+    // FIXED HERE: Added supportsAllDrives: true to bypass the service account quota restriction
     const response = await drive.files.create({
       resource: fileMetadata,
       media: media,
       fields: 'id',
+      supportsAllDrives: true, 
     });
 
     return res.status(200).json({ success: true, fileId: response.data.id });
   } catch (error) {
     console.error("CRASH ERROR:", error);
-    
-    // CHANGED HERE: Send the exact raw error message directly back to your frontend screen
     return res.status(500).json({ 
       error: 'Server crashed internally', 
       message: error.message,
