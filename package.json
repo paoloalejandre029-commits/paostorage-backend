@@ -1,8 +1,8 @@
 {
   "name": "paostorage-backend",
   "version": "1.0.0",
+  "type": "module",
   "dependencies": {
-    "googleapis": "^126.0.0",
-    "multiparty": "^4.2.3"
+    "googleapis": "^126.0.0"
   }
 }
