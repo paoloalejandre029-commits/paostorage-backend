@@ -1,7 +1,6 @@
 import { google } from 'googleapis';
 
 export default async function handler(req, res) {
-  // 1. Force CORS headers to be sent immediately, no matter what happens next
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -21,14 +20,11 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Missing file data' });
     }
 
-    // 2. Extra robust private key cleaning
     let privateKey = process.env.GOOGLE_PRIVATE_KEY;
     if (privateKey) {
-      // Fixes any literal '\n' text or double quotes introduced during copying/pasting
       privateKey = privateKey.replace(/\\n/g, '\n').replace(/"/g, '');
     }
 
-    // 3. Authenticate with Google Drive
     const auth = new google.auth.JWT(
       process.env.GOOGLE_CLIENT_EMAIL,
       null,
@@ -38,7 +34,6 @@ export default async function handler(req, res) {
 
     const drive = google.drive({ version: 'v3', auth });
 
-    // 4. Convert Base64 string to buffer stream
     const buffer = Buffer.from(fileData, 'base64');
     const { Readable } = await import('stream');
     const bufferStream = new Readable();
@@ -64,7 +59,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ success: true, fileId: response.data.id });
   } catch (error) {
     console.error("CRASH ERROR:", error);
-    // Return a 200 with success:false so the browser doesn't drop the connection on a crash
-    return res.status(200).json({ success: false, error: 'Server crashed internally', details: error.message });
+    
+    // CHANGED HERE: Send the exact raw error message directly back to your frontend screen
+    return res.status(500).json({ 
+      error: 'Server crashed internally', 
+      message: error.message,
+      code: error.code
+    });
   }
 }
